@@ -4,3 +4,4 @@ vendor
 .vs
 .git
 index.php
+.htaccess
