@@ -5,3 +5,4 @@ vendor
 .git
 index.php
 .htaccess
+composer.lock

@@ -1,6 +1,10 @@
 ## Necessary:
-    - .htaccess
-## Start:
+    - .htaccess(in root project folder)
+## Install library:
+```bash
+    composer require nigr/router:@dev
+```
+## Start router:
     - $router = new Router();
-    - $router->add("GET", "/test", [\TestController::class, "get"]);
+    - $router->add("prefer-method", "/your-url", [\YourController::class, "your-action"]);
     - $response = $router->run();

@@ -15,5 +15,7 @@
             "email": "vreservoirv@rambler.ru"
         }
     ],
-    "require": {}
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    }
 }
