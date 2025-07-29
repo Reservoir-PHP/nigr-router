@@ -5,35 +5,30 @@ namespace Nigr\Router;
 class Router
 {
 	private array $routes = [];
-	private string $path = '';
-	private string $method = '';
-	private array $params = [];
+	private string $method;
+	private string $path;
 
-	public function __construct($routes = [])
+	public function __construct()
 	{
-		$this->routes = $routes;
+		$this->method = strtolower($_SERVER['REQUEST_METHOD']);
 		$this->path = $this->parseUrl($_SERVER['REQUEST_URI'])['path'];
-		$this->method = $_SERVER['REQUEST_METHOD'];
-		$this->params = $this->parseUrl($_SERVER['REQUEST_URI'])['params'];
 	}
 
 	public function run()
 	{
-
 		foreach ($this->routes as $route) {
-			if ($route['method'] !== $this->method || $route['path'] !== $this->path) continue;
+			if (strtolower($route['method']) !== $this->method || $route['path'] !== $this->path) continue;
 
 			$controller = new $route['handler'][0]();
 			$action = $route['handler'][1];
 
-			return $controller->$action($this->params);
+			return $controller->$action($_GET);
 		}
 
 		return [
 			'status' => false,
-			'data' => [
-				'message' => 'Page not found, error 404'
-			]
+            "code" => 404,
+			'data' => ['message' => 'Page not found, error 404']
 		];
 	}
 
@@ -46,30 +41,33 @@ class Router
 		];
 	}
 
-	function normalizePath(string $path): string
+	public function parseUrl(string $url): array
 	{
-		return trim($path, '/');
+		$path = $this->getPath($url);
+
+        if ($this->method === "get") {
+            $queryString = $this->normalizePath(explode('?', $url)[1] ?? "");
+            $params = $this->getQueryParams($queryString);
+        }
+
+		return ['path' => $path, 'params' => $params ?? null];
 	}
 
-	function parseUrl($url): array
-	{
-//	$method = $_SERVER["REQUEST_METHOD"];
-		$pathString = trim(explode('?', $url)[0], '/');
-		$queryParams = $this->parseQueryString(explode('?', $url)[1] ?? '');
+    private function getPath(string $url): string
+    {
+        return $this->normalizePath(explode('?', $url)[0]);
+    }
 
-		return [
-//		'method' => strtolower($method),
-			'path' => $pathString,
-			'params' => $queryParams
-		];
-	}
+    private function normalizePath(string $path): string
+    {
+        return trim(strtolower($path), '/');
+    }
 
-	function parseQueryString($queryString): array
+	private function getQueryParams(string $queryString): array
 	{
 		$queryParams = [];
 
 		foreach (explode('&', $queryString) as $query) {
-
 			if (!str_contains($query, '=')) return [];
 
 			$key = explode('=', $query)[0];

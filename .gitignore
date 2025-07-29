@@ -6,3 +6,4 @@ vendor
 index.php
 .htaccess
 composer.lock
+src/TestController.php
