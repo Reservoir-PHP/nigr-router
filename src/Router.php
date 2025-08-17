@@ -10,7 +10,7 @@ class Router
 
 	public function __construct()
 	{
-		$this->method = strtolower($_SERVER['REQUEST_METHOD']);
+		$this->method = strtolower($_SERVER['REQUEST_METHOD'] ?? "");
 		$this->path = $this->parseUrl($_SERVER['REQUEST_URI'])['path'];
 	}
 
@@ -27,7 +27,7 @@ class Router
 
 		return [
 			'status' => false,
-            "code" => 404,
+			"code" => 404,
 			'data' => ['message' => 'Page not found, error 404']
 		];
 	}
@@ -45,23 +45,23 @@ class Router
 	{
 		$path = $this->getPath($url);
 
-        if ($this->method === "get") {
-            $queryString = $this->normalizePath(explode('?', $url)[1] ?? "");
-            $params = $this->getQueryParams($queryString);
-        }
+		if ($this->method === "get") {
+			$queryString = $this->normalizePath(explode('?', $url)[1] ?? "");
+			$params = $this->getQueryParams($queryString);
+		}
 
 		return ['path' => $path, 'params' => $params ?? null];
 	}
 
-    private function getPath(string $url): string
-    {
-        return $this->normalizePath(explode('?', $url)[0]);
-    }
+	private function getPath(string $url): string
+	{
+		return $this->normalizePath(explode('?', $url)[0]);
+	}
 
-    private function normalizePath(string $path): string
-    {
-        return trim(strtolower($path), '/');
-    }
+	private function normalizePath(string $path): string
+	{
+		return trim(strtolower($path), '/');
+	}
 
 	private function getQueryParams(string $queryString): array
 	{
