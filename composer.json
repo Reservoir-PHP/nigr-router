@@ -1,23 +1,28 @@
 {
-    "name": "nigr/router",
-    "description": "simple router",
-    "type": "library",
-    "license": "MIT",
-    "autoload": {
-        "psr-4": {
-            "Nigr\\Router\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Vladimir Nikitin",
-            "email": "vreservoirv@rambler.ru"
-        }
-    ],
-    "require": {
-        "php": ">=8.1"
-    },
-    "require-dev": {
-        "phpunit/phpunit": "^10.5"
+  "name": "nigr/router",
+  "description": "simple router",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Nigr\\Router\\": "src/"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Nigr\\Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Vladimir Nikitin",
+      "email": "vreservoirv@rambler.ru"
+    }
+  ],
+  "require": {
+    "php": ">=8.1"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.5"
+  }
 }
