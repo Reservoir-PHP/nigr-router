@@ -4,78 +4,63 @@ namespace Nigr\Router;
 
 class Router
 {
-	private array $routes = [];
+	private array $routes;
 	private string $method;
-	private string $path;
 
-	public function __construct()
+	public function __construct($routes = [])
 	{
-		$this->method = strtolower($_SERVER['REQUEST_METHOD'] ?? "");
-		$this->path = $this->parseUrl($_SERVER['REQUEST_URI'])['path'];
+		$this->routes = $routes;
+		$this->method = strtolower($_SERVER['REQUEST_METHOD']);
 	}
 
-	public function run()
+	/**
+	 * @return array|string
+	 */
+	public function run(): array|string
 	{
 		foreach ($this->routes as $route) {
-			if (strtolower($route['method']) !== $this->method || $route['path'] !== $this->path) continue;
+			$params = [];
+			$param = $route->getParamName();
 
-			$controller = new $route['handler'][0]();
-			$action = $route['handler'][1];
+			if ($queryParams = $this->parseUrl()['queryParams']) {
+				$params = array_merge($params, $queryParams);
+			}
 
-			return $controller->$action($_GET);
+			if (strtolower($route->getMethod()) !== strtolower($this->method)) {
+				continue;
+			}
+
+			if ($route->getPath()[0] !== $this->parseUrl()['path'][0]) {
+				continue;
+			}
+
+			if (count($this->parseUrl()["path"]) > 1 && !$param) {
+				continue;
+			}
+
+			if ($param) {
+				$params[$param] = $this->parseUrl()['path'][1];
+			}
+
+			$controller = $route->getHandler()[0];
+			$action = $route->getHandler()[1];
+
+			return [$controller, $action, $params];
 		}
 
-		return [
-			'status' => false,
-			"code" => 404,
-			'data' => ['message' => 'Page not found, error 404']
-		];
+		return "Route does not exist!";
 	}
 
-	public function add(string $method, string $path, array $handler): void
+	/**
+	 * @return array
+	 */
+	private function parseUrl(): array
 	{
-		$this->routes[] = [
-			'method' => strtoupper($method),
-			'path' => $this->normalizePath($path),
-			'handler' => $handler
-		];
-	}
+		$url = explode('?', $_SERVER['REQUEST_URI'])[0];
+		$path = trim($url, '/');
 
-	public function parseUrl(string $url): array
-	{
-		$path = $this->getPath($url);
+		$path = explode('/', $path);
 
-		if ($this->method === "get") {
-			$queryString = $this->normalizePath(explode('?', $url)[1] ?? "");
-			$params = $this->getQueryParams($queryString);
-		}
-
-		return ['path' => $path, 'params' => $params ?? null];
-	}
-
-	private function getPath(string $url): string
-	{
-		return $this->normalizePath(explode('?', $url)[0]);
-	}
-
-	private function normalizePath(string $path): string
-	{
-		return trim(strtolower($path), '/');
-	}
-
-	private function getQueryParams(string $queryString): array
-	{
-		$queryParams = [];
-
-		foreach (explode('&', $queryString) as $query) {
-			if (!str_contains($query, '=')) return [];
-
-			$key = explode('=', $query)[0];
-			$value = explode('=', $query)[1];
-
-			$queryParams[$key] = $value;
-		}
-
-		return $queryParams;
+		return ['path' => $path, 'queryParams' => $_GET];
 	}
 }
