@@ -1,113 +1,138 @@
 <?php
 
-namespace Nigr\Tests\unit;
-
+use Nigr\Router\Route;
 use Nigr\Router\Router;
+use Nigr\Router\Routes;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
-use ReflectionException;
+
+class TestController
+{
+	public function home($params = []): array
+	{
+		return ['action' => 'home', 'params' => $params];
+	}
+
+	public function readUser($params = []): array
+	{
+		return ['action' => 'get', 'params' => $params];
+	}
+
+	public function createUser(): array
+	{
+		$params = json_decode(file_get_contents("php://input"), true);
+
+		var_dump(">>>", $params);
+
+		return ['action' => 'post', 'params' => $params];
+	}
+}
 
 class RouterTest extends TestCase
 {
-	private Router $router;
-
-	protected function setUp(): void
-	{
-		parent::setUp();
-
-		$_SERVER['REQUEST_METHOD'] = 'GET';
-		$_SERVER['REQUEST_URI'] = '/test';
-
-		$this->router = new Router();
-	}
-
 	/**
-	 * @param string $expected
-	 * @param string $path
+	 * @param array $data
+	 * @param array|string $expected
 	 * @return void
-	 * @throws ReflectionException
-	 * @dataProvider getPathData
+	 * @dataProvider getRouterData
 	 */
-	public function testNormalizePath(string $expected, string $path): void
+	public function testRun(array $data, array|string $expected): void
 	{
-		$reflection = new ReflectionClass($this->router);
-		$normalizePathMethod = $reflection->getMethod('normalizePath');
+		$_SERVER['REQUEST_URI'] = $data[0];
+		$_SERVER['REQUEST_METHOD'] = $data[1];
 
-		$result = $normalizePathMethod->invoke($this->router, $path);
+		$queryParams = explode("?", $data[0])[1] ?? null;
 
-		self::assertEquals($expected, $result);
+		if ($queryParams) {
+			$arr = explode("&", $queryParams);
+
+			foreach ($arr as $param) {
+				$key = explode("=", $param)[0];
+				$value = explode("=", $param)[1];
+
+				$_GET[$key] = $value;
+			}
+		}
+
+		$routes = new Routes();
+		$routes->add(new Route("GET", "", [TestController::class, 'home']));
+		$routes->add(new Route("GET", "users", [TestController::class, 'readUser']));
+		$routes->add(new Route("GET", "/users/{id}/", [TestController::class, 'readUser']));
+		$routes->add(new Route("POST", "users", [TestController::class, 'createUser']));
+		$router = new Router($routes->get());
+		$result = $router->run();
+
+		if (is_array($result)) {
+			self::assertEquals($expected['controller'], $result[0]);
+			self::assertEquals($expected['action'], $result[1]);
+			self::assertEquals($expected['params'], $result[2]);
+		} else {
+			self::assertEquals($expected, $result);
+		}
 	}
 
-	public static function getPathData(): array
+	public static function getRouterData(): array
 	{
 		return [
-			['test', "/test"],
-			['test', "test/"],
-			['test', "/test/"],
-			['test', "test"]
+			[
+				['', 'GET'],
+				['controller' => TestController::class, 'action' => 'home', 'params' => []]
+			],
+			[
+				['name', 'GET'],
+				"Route does not exist!"
+			],
+			[
+				['users', "GET"],
+				['controller' => TestController::class, 'action' => 'readUser', 'params' => []]
+			],
+			[
+				['users?name=ivan', "GET"],
+				['controller' => TestController::class, 'action' => 'readUser', 'params' => ['name' => "ivan"]]
+			],
+			[
+				['users/3', "GET"],
+				['controller' => TestController::class, 'action' => 'readUser', 'params' => ['id' => 3]]
+			],
+			[
+				['/users/3?name=ivan&age=30', "GET"],
+				['controller' => TestController::class, 'action' => 'readUser', 'params' => ['age' => 30, 'name' => 'ivan', 'id' => '3']]
+			],
+			[
+				['users', "POST"],
+				['controller' => TestController::class, 'action' => 'createUser', 'params' => []]
+			],
 		];
 	}
 
 	/**
-	 * @param $expected
-	 * @param $queryParams
+	 * @param string $uri
+	 * @param array $expected
 	 * @return void
 	 * @throws ReflectionException
-	 * @dataProvider getQueryParamsData
+	 * @dataProvider getUrls
 	 */
-	public function testGetQueryParams($expected, $queryParams): void
+	public function testParseUrl(string $uri, array $expected): void
 	{
-		$reflection = new ReflectionClass($this->router);
-		$getQueryParamsMethod = $reflection->getMethod('getQueryParams');
+		$router = new Router();
+		$_SERVER['REQUEST_URI'] = $uri;
+		$reflection = new ReflectionClass($router);
+		$parseUrlMethod = $reflection->getMethod('parseUrl');
 
-		$result = $getQueryParamsMethod->invoke($this->router, $queryParams);
+		$result = $parseUrlMethod->invoke($router);
 
-		self::assertEquals($expected, $result);
+		self::assertEquals($expected[0], $result['path'][0]);
+		self::assertEquals($expected[1], $result['path'][1] ?? null);
 	}
 
-	public static function getQueryParamsData(): array
+	public static function getUrls(): array
 	{
 		return [
-			[[], ""],
-			[['name' => "bob"], "name=bob"],
-			[['name' => "bob", 'age' => 25], "name=bob&age=25"],
+			['', ['', null]],
+			['/', ['', null]],
+			['name/3', ['name', '3']],
+			['/name/23/', ['name', '23']],
+			['name/test', ['name', 'test']],
+			['/name/test/', ['name', 'test']],
 		];
-	}
-
-	public function testAdd()
-	{
-		$this->router->add('GET', '/test', [TestsController::class, 'get']);
-
-		$reflection = new ReflectionClass($this->router);
-		$routesProperty = $reflection->getProperty('routes');
-		$routes = $routesProperty->getValue($this->router);
-
-		self::assertCount(1, $routes);
-		self::assertEquals('GET', $routes[0]['method']);
-		self::assertEquals('test', $routes[0]['path']);
-		self::assertEquals([TestsController::class, 'get'], $routes[0]['handler']);
-	}
-
-	public function testRunReturns404()
-	{
-		$response = $this->router->run();
-
-		self::assertIsArray($response);
-		self::assertFalse($response['status']);
-		self::assertEquals(404, $response['code']);
-		self::assertArrayHasKey('message', $response['data']);
-	}
-
-	public function testRouteMatchesAndReturnsControllerResult(): void
-	{
-		$_GET = ['test' => 'test'];
-
-		$this->router->add('GET', '/test', [\Nigr\Tests\unit\TestsController::class, 'get']);
-
-		$result = $this->router->run();
-
-		$this->assertIsArray($result);
-		$this->assertArrayHasKey('action', $result);
-		$this->assertEquals($_GET, $result['params']);
 	}
 }

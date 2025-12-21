@@ -4,7 +4,7 @@
 
 1. Install
     ```bash
-    composer require phpunit/phpunit
+    composer require --dev phpunit/phpunit
     ```
 2. Create the 'tests' folder in the root directory and repeat project tree.
 
@@ -24,12 +24,17 @@
 5. Create the settings file "phpunit.xml" in the root directory.
 
 6. phpunit.xml:
+
     ```xml
     <phpunit
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
-        bootstrap="tests\bootstrap.php"
+        bootstrap="tests/bootstrap.php"
+        backupGlobals="true"
         displayDetailsOnTestsThatTriggerDeprecations="true"
+        displayDetailsOnTestsThatTriggerWarnings="true"
+        displayDetailsOnTestsThatTriggerNotices="true"
+        displayDetailsOnTestsThatTriggerErrors="true"
         displayDetailsOnPhpunitDeprecations="true"
         colors="true"
         cacheDirectory="tests/info"
@@ -38,8 +43,10 @@
             <testsuite name="unit">
                 <directory>tests/unit</directory>
             </testsuite>
+            <testsuite name="integration">
+                <directory>tests/integration</directory>
+            </testsuite>
         </testsuites>
-
         <source>
             <include>
                 <directory>src</directory>
@@ -50,7 +57,6 @@
                 <directory>tests</directory>
             </exclude>
         </source>
-
         <coverage>
             <report>
                 <clover outputFile="tests/info/coverage.xml"/>
@@ -58,7 +64,6 @@
                 <text outputFile="php://stdout"/>
             </report>
         </coverage>
-
         <logging>
             <junit outputFile="tests/info/log/junit.xml"/>
         </logging>
@@ -79,3 +84,4 @@
     ```bash
     vendor/bin/phpunit [tests]
     ```
+10. Auto tests:

@@ -6,4 +6,5 @@ vendor
 index.php
 .htaccess
 composer.lock
+logs
 tests/info
