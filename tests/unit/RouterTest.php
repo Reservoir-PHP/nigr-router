@@ -17,11 +17,14 @@ class TestController
 		return ['action' => 'get', 'params' => $params];
 	}
 
+	public function testUser($params = []): array
+	{
+		return ['action' => 'test', 'params' => $params];
+	}
+
 	public function createUser(): array
 	{
-		$params = json_decode(file_get_contents("php://input"), true);
-
-		var_dump(">>>", $params);
+		$params = json_decode(file_get_contents("php://input"), true) ?? $_POST;
 
 		return ['action' => 'post', 'params' => $params];
 	}
@@ -34,6 +37,7 @@ class RouterTest extends TestCase
 	 * @param array|string $expected
 	 * @return void
 	 * @dataProvider getRouterData
+	 * @throws Exception
 	 */
 	public function testRun(array $data, array|string $expected): void
 	{
@@ -41,7 +45,6 @@ class RouterTest extends TestCase
 		$_SERVER['REQUEST_METHOD'] = $data[1];
 
 		$queryParams = explode("?", $data[0])[1] ?? null;
-
 		if ($queryParams) {
 			$arr = explode("&", $queryParams);
 
@@ -52,22 +55,44 @@ class RouterTest extends TestCase
 				$_GET[$key] = $value;
 			}
 		}
+		// TODO To decide
+//		if (isset(explode("?", $data[0])[1])) {
+//			parse_str(parse_url($data[0], PHP_URL_QUERY), $_GET);
+//		}
 
 		$routes = new Routes();
 		$routes->add(new Route("GET", "", [TestController::class, 'home']));
 		$routes->add(new Route("GET", "users", [TestController::class, 'readUser']));
+		$routes->add(new Route("GET", "users/test", [TestController::class, 'testUser']));
 		$routes->add(new Route("GET", "/users/{id}/", [TestController::class, 'readUser']));
 		$routes->add(new Route("POST", "users", [TestController::class, 'createUser']));
 		$router = new Router($routes->get());
-		$result = $router->run();
 
-		if (is_array($result)) {
-			self::assertEquals($expected['controller'], $result[0]);
-			self::assertEquals($expected['action'], $result[1]);
-			self::assertEquals($expected['params'], $result[2]);
-		} else {
-			self::assertEquals($expected, $result);
+		if (is_string($expected)) {
+			$this->expectException(Exception::class);
+			$this->expectExceptionMessage($expected);
+			$router->run();
+
+			return;
 		}
+
+		if (isset($data[2]) && $_SERVER['REQUEST_METHOD'] === 'POST' && $data[2] === ["post" => "form_data"]) {
+			$_POST = $data[2];
+			$_SERVER['CONTENT_TYPE'] = 'application/x-www-form-urlencoded';
+			$_SERVER['CONTENT_LENGTH'] = strlen(http_build_query($_POST));
+		}
+
+		list($controller, $action, $param) = $router->run();
+
+		if (isset($data[2])) {
+			$result = (new $controller)->$action($param);
+
+			self::assertEquals($data[2], $result['params']);
+		}
+
+		self::assertEquals($expected['controller'], $controller);
+		self::assertEquals($expected['action'], $action);
+		self::assertEquals($expected['params'], $param);
 	}
 
 	public static function getRouterData(): array
@@ -79,7 +104,7 @@ class RouterTest extends TestCase
 			],
 			[
 				['name', 'GET'],
-				"Route does not exist!"
+				"Route 'name' does not exist!"
 			],
 			[
 				['users', "GET"],
@@ -94,11 +119,19 @@ class RouterTest extends TestCase
 				['controller' => TestController::class, 'action' => 'readUser', 'params' => ['id' => 3]]
 			],
 			[
+				['users/test', "GET"],
+				['controller' => TestController::class, 'action' => 'testUser', 'params' => []]
+			],
+			[
 				['/users/3?name=ivan&age=30', "GET"],
 				['controller' => TestController::class, 'action' => 'readUser', 'params' => ['age' => 30, 'name' => 'ivan', 'id' => '3']]
 			],
 			[
 				['users', "POST"],
+				['controller' => TestController::class, 'action' => 'createUser', 'params' => []]
+			],
+			[
+				['users', "POST", ["post" => "form_data"]],
 				['controller' => TestController::class, 'action' => 'createUser', 'params' => []]
 			],
 		];

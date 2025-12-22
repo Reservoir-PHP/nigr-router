@@ -2,6 +2,8 @@
 
 namespace Nigr\Router;
 
+use Exception;
+
 class Router
 {
 	private array $routes;
@@ -14,32 +16,31 @@ class Router
 	}
 
 	/**
-	 * @return array|string
+	 * @return array
+	 * @throws Exception
 	 */
-	public function run(): array|string
+	public function run(): array
 	{
+		$params = [];
+		$path = $this->parseUrl()['path'];
+
 		foreach ($this->routes as $route) {
-			$params = [];
 			$param = $route->getParamName();
 
 			if ($queryParams = $this->parseUrl()['queryParams']) {
 				$params = array_merge($params, $queryParams);
 			}
 
-			if (strtolower($route->getMethod()) !== strtolower($this->method)) {
-				continue;
-			}
+			if (strtolower($route->getMethod()) !== strtolower($this->method)) continue;
 
-			if ($route->getPath()[0] !== $this->parseUrl()['path'][0]) {
-				continue;
-			}
+			if ($route->getPath()[0] !== $path[0]) continue;
 
-			if (count($this->parseUrl()["path"]) > 1 && !$param) {
-				continue;
-			}
+			if (isset($path[1]) && is_numeric($path[1]) && !$param) continue;
+
+			if (!$param && isset($path[1]) && (!isset($route->getPath()[1]) || $path[1] !== $route->getPath()[1])) continue;
 
 			if ($param) {
-				$params[$param] = $this->parseUrl()['path'][1];
+				$params[$param] = $path[1];
 			}
 
 			$controller = $route->getHandler()[0];
@@ -48,7 +49,9 @@ class Router
 			return [$controller, $action, $params];
 		}
 
-		return "Route does not exist!";
+		$path = implode("/", $path);
+
+		throw new Exception("Route '$path' does not exist!");
 	}
 
 	/**
